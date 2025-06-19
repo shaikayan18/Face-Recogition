@@ -1,0 +1,52 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Face Attendance</title>
+</head>
+<body>
+ <video id="video" width="320" height="240" autoplay></video><br>
+<button id="markBtn">Mark Attendance</button>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+      document.getElementById('video').srcObject = stream;
+    });
+
+  document.getElementById("markBtn").addEventListener("click", takePhoto);
+
+  function takePhoto() {
+    // alert("Button Clicked!");
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    const image = canvas.toDataURL("image/jpeg");
+
+    console.log("📤 Sending image to Flask");
+
+    fetch("http://172.19.70.122:5000/receive_image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ image })
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert("✅ Server says: " + data.message);
+      console.log("✅ Flask responded:", data);
+    })
+    .catch(err => {
+      alert("❌ Fetch failed: " + err);
+      console.error("❌ Fetch failed:", err);
+    });
+  }
+</script>
+
+</body>
+</html>
