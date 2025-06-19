@@ -32,7 +32,8 @@
     fetch("https://f521-2409-4091-90b7-fa07-ed9b-7a86-af68-462f.ngrok-free.app/receive_image", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+         "ngrok-skip-browser-warning": "true"  
       },
       body: JSON.stringify({ image })
     })
