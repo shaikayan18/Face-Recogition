@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -6,32 +5,25 @@
 </head>
 <body>
   <h2>Face Attendance System</h2>
-
-  <!-- Webcam Preview -->
   <video id="video" width="320" height="240" autoplay></video><br>
 
-  <!-- Input for User Name or ID -->
-  <input type="text" id="username" placeholder="Enter Name or ID"><br><br>
+  <input type="text" id="username" placeholder="Enter your email or name" />
+  <br><br>
+  <button id="captureBtn">📸 Capture & Register</button>
+  <button id="trainBtn">🧠 Train Model</button>
+  <button id="markBtn">📝 Mark Attendance</button>
 
-  <!-- Buttons -->
-  <button id="captureBtn">Capture & Register Face</button>
-  <button id="trainBtn">Train Model</button>
-  <button id="markBtn">Mark Attendance</button>
-
-  <!-- Hidden Canvas -->
   <canvas id="canvas" style="display:none;"></canvas>
 
   <script>
-    // Access webcam
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        document.getElementById('video').srcObject = stream;
-      });
-
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
 
-    // Capture image from video
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      });
+
     function captureImage() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -39,53 +31,70 @@
       return canvas.toDataURL("image/jpeg");
     }
 
-    // Register new user face
     document.getElementById("captureBtn").addEventListener("click", () => {
-      const username = document.getElementById("username").value.trim();
-      if (!username) {
-        alert("Please enter a name or ID first.");
-        return;
-      }
       const image = captureImage();
+      let username = document.getElementById("username").value.trim();
+      if (!username) return alert("⚠️ Enter your name or email first!");
+
+      // Sanitize: avoid special characters in folder/filename
+      username = username.replace(/[^a-zA-Z0-9]/g, "_");
 
       fetch("https://face-recogition.onrender.com/register_image", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, image })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ image, username })
       })
       .then(res => res.json())
       .then(data => {
-        alert("✅ Registered: " + data.message);
+        alert("✅ " + data.message);
+        console.log("✅ Registration success:", data);
       })
-      .catch(err => alert("❌ Registration Error: " + err));
+      .catch(err => {
+        alert("❌ Registration Error: " + err);
+        console.error("❌ Registration Error:", err);
+      });
     });
 
-    // Train the face recognition model
     document.getElementById("trainBtn").addEventListener("click", () => {
-      fetch("https://your-render-app.onrender.com/train_model", {
-        method: "POST"
+      fetch("https://face-recogition.onrender.com/train_model", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
       })
       .then(res => res.json())
       .then(data => {
-        alert("✅ Model trained: " + data.message);
+        alert("✅ " + data.message);
+        console.log("✅ Training success:", data);
       })
-      .catch(err => alert("❌ Training Error: " + err));
+      .catch(err => {
+        alert("❌ Training Error: " + err);
+        console.error("❌ Training Error:", err);
+      });
     });
 
-    // Mark attendance by recognizing face
     document.getElementById("markBtn").addEventListener("click", () => {
       const image = captureImage();
 
       fetch("https://face-recogition.onrender.com/receive_image", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true"
+        },
         body: JSON.stringify({ image })
       })
       .then(res => res.json())
       .then(data => {
-        alert("✅ Attendance marked: " + data.message);
+        alert("✅ Attendance: " + data.message);
+        console.log("✅ Flask responded:", data);
       })
-      .catch(err => alert("❌ Attendance Error: " + err));
+      .catch(err => {
+        alert("❌ Attendance Error: " + err);
+        console.error("❌ Fetch failed:", err);
+      });
     });
   </script>
 </body>
