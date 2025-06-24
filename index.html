@@ -76,7 +76,7 @@
     document.getElementById("markBtn").addEventListener("click", () => {
       const image = captureImage();
 
-      fetch("https://your-render-app.onrender.com/receive_image", {
+      fetch("https://face-recogition.onrender.com/receive_image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image })
