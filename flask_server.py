@@ -1,5 +1,5 @@
 # flask_server.py
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import cv2
 import numpy as np
 import base64
@@ -47,6 +47,8 @@ def register_image():
 
         if not username or not image_data:
             return jsonify({'message': 'Invalid data'}), 400
+
+        username = username.replace("@", "_at_").replace(".", "_")
 
         # Assign ID based on CSV
         next_id = 1
@@ -161,6 +163,10 @@ def receive_image():
     except Exception as e:
         print("❌ Error in receive_image:", e)
         return jsonify({"message": "Internal server error"}), 500
+
+@app.route('/dataset/<path:subpath>')
+def serve_image(subpath):
+    return send_from_directory(DATASET_DIR, subpath)
 
 @app.route('/test', methods=['GET'])
 def test():
