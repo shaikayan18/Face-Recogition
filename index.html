@@ -2,52 +2,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Face Attendance</title>
+  <title>Face Attendance System</title>
 </head>
 <body>
- <video id="video" width="320" height="240" autoplay></video><br>
-<button id="markBtn">Mark Attendance</button>
-<canvas id="canvas" style="display:none;"></canvas>
+  <h2>Face Attendance System</h2>
 
-<script>
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-      document.getElementById('video').srcObject = stream;
-    });
+  <!-- Webcam Preview -->
+  <video id="video" width="320" height="240" autoplay></video><br>
 
-  document.getElementById("markBtn").addEventListener("click", takePhoto);
+  <!-- Input for User Name or ID -->
+  <input type="text" id="username" placeholder="Enter Name or ID"><br><br>
 
-  function takePhoto() {
-    // alert("Button Clicked!");
+  <!-- Buttons -->
+  <button id="captureBtn">Capture & Register Face</button>
+  <button id="trainBtn">Train Model</button>
+  <button id="markBtn">Mark Attendance</button>
+
+  <!-- Hidden Canvas -->
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    // Access webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        document.getElementById('video').srcObject = stream;
+      });
 
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    const image = canvas.toDataURL("image/jpeg");
 
-    console.log("📤 Sending image to Flask");
+    // Capture image from video
+    function captureImage() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+      return canvas.toDataURL("image/jpeg");
+    }
 
-    fetch("https://f521-2409-4091-90b7-fa07-ed9b-7a86-af68-462f.ngrok-free.app/receive_image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-         "ngrok-skip-browser-warning": "true"  
-      },
-      body: JSON.stringify({ image })
-    })
-    .then(res => res.json())
-    .then(data => {
-      alert("✅ Server says: " + data.message);
-      console.log("✅ Flask responded:", data);
-    })
-    .catch(err => {
-      alert("❌ Fetch failed: " + err);
-      console.error("❌ Fetch failed:", err);
+    // Register new user face
+    document.getElementById("captureBtn").addEventListener("click", () => {
+      const username = document.getElementById("username").value.trim();
+      if (!username) {
+        alert("Please enter a name or ID first.");
+        return;
+      }
+      const image = captureImage();
+
+      fetch("https://your-render-app.onrender.com/register_image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, image })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("✅ Registered: " + data.message);
+      })
+      .catch(err => alert("❌ Registration Error: " + err));
     });
-  }
-</script>
 
+    // Train the face recognition model
+    document.getElementById("trainBtn").addEventListener("click", () => {
+      fetch("https://your-render-app.onrender.com/train_model", {
+        method: "POST"
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("✅ Model trained: " + data.message);
+      })
+      .catch(err => alert("❌ Training Error: " + err));
+    });
+
+    // Mark attendance by recognizing face
+    document.getElementById("markBtn").addEventListener("click", () => {
+      const image = captureImage();
+
+      fetch("https://your-render-app.onrender.com/receive_image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("✅ Attendance marked: " + data.message);
+      })
+      .catch(err => alert("❌ Attendance Error: " + err));
+    });
+  </script>
 </body>
 </html>
