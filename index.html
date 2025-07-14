@@ -6,36 +6,43 @@
 <body>
   <h2>Face Attendance System</h2>
   <video id="video" width="320" height="240" autoplay></video><br>
+
   <input type="text" id="username" placeholder="Enter your email or name" />
   <br><br>
   <button id="captureBtn">📸 Capture & Register</button>
   <button id="trainBtn">🧠 Train Model</button>
   <button id="markBtn">📝 Mark Attendance</button>
+
   <canvas id="canvas" style="display:none;"></canvas>
+
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
+
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         video.srcObject = stream;
       });
+
     function captureImage() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext("2d").drawImage(video, 0, 0);
       return canvas.toDataURL("image/jpeg");
     }
+
     document.getElementById("captureBtn").addEventListener("click", () => {
       const image = captureImage();
       let username = document.getElementById("username").value.trim();
       if (!username) return alert("⚠️ Enter your name or email first!");
+
       // Sanitize: avoid special characters in folder/filename
       username = username.replace(/[^a-zA-Z0-9]/g, "_");
-      fetch("https://3c120af8c4e9.ngrok-free.app/register_image", {
+
+      fetch("https://face-recogition.onrender.com/register_image", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true"
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ image, username })
       })
@@ -49,12 +56,12 @@
         console.error("❌ Registration Error:", err);
       });
     });
+
     document.getElementById("trainBtn").addEventListener("click", () => {
-      fetch("https://3c120af8c4e9.ngrok-free.app/train_model", {
+      fetch("https://face-recogition.onrender.com/train_model", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true"
+          "Content-Type": "application/json"
         }
       })
       .then(res => res.json())
@@ -67,9 +74,11 @@
         console.error("❌ Training Error:", err);
       });
     });
+
     document.getElementById("markBtn").addEventListener("click", () => {
       const image = captureImage();
-      fetch("https://3c120af8c4e9.ngrok-free.app/receive_image", {
+
+      fetch("https://face-recogition.onrender.com/receive_image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
