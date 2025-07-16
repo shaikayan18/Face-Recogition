@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Face Attendance System</title>
+  <title>FaceNet Attendance System</title>
 </head>
 <body>
-  <h2>Face Attendance System</h2>
+  <h2>FaceNet Face Attendance System</h2>
   <video id="video" width="320" height="240" autoplay></video><br><br>
   <button id="markBtn">📝 Mark Attendance</button>
+  <button id="downloadBtn">📥 Download Today's Attendance</button>
   <canvas id="canvas" style="display:none;"></canvas>
 
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
+    const FLASK_URL = "https://a7bdc11ad372.ngrok-free.app"; // Update with your Ngrok URL
 
     // Start webcam
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -19,7 +21,6 @@
         video.srcObject = stream;
       });
 
-    // Capture image from webcam
     function captureImage() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -27,11 +28,11 @@
       return canvas.toDataURL("image/jpeg");
     }
 
-    // Mark attendance button
+    // Mark attendance
     document.getElementById("markBtn").addEventListener("click", () => {
       const image = captureImage();
 
-      fetch("https://a7bdc11ad372.ngrok-free.app/receive_image", {
+      fetch(`${FLASK_URL}/receive_image`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,12 +43,15 @@
       .then(res => res.json())
       .then(data => {
         alert("✅ " + data.message);
-        console.log("✅ Server response:", data);
       })
       .catch(err => {
         alert("❌ Attendance Error: " + err);
-        console.error("❌ Fetch failed:", err);
       });
+    });
+
+    // Download CSV
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      window.open(`${FLASK_URL}/download_csv`, '_blank');
     });
   </script>
 </body>

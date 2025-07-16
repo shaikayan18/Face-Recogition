@@ -1,42 +1,35 @@
+import requests
+import json
+import base64
 import cv2
 import os
-import csv
-import numpy as np
-from PIL import Image
-import pandas as pd
-import datetime
-import time
-import re
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
-import tkinter.messagebox as mess
-import tkinter.simpledialog as simpledialog
-import urllib.request
 import logging
+from datetime import datetime
 
 # Set up logging for debugging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class AttendanceBackend:
-    def __init__(self):
+    def __init__(self, flask_url="http://127.0.0.1:5000"):
+        self.flask_url = flask_url
         self.haarcascade_path = "haarcascade_frontalface_default.xml"
         self.training_image_path = "TrainingImage/"
-        self.training_label_path = "TrainingImageLabel/"
         self.student_details_path = "StudentDetails/"
         self.attendance_path = "Attendance/"
         
         # Create directories
         self.assure_path_exists(self.training_image_path)
-        self.assure_path_exists(self.training_label_path)
         self.assure_path_exists(self.student_details_path)
         self.assure_path_exists(self.attendance_path)
         
         # Download haarcascade if not present
         self.ensure_haarcascade_exists()
-        
+
+    def set_flask_url(self, url):
+        """Update Flask server URL (for Ngrok)"""
+        self.flask_url = url
+        logging.info(f"Flask URL updated to: {url}")
+
     def assure_path_exists(self, path):
         """Ensure directory exists, create if not"""
         try:
@@ -115,7 +108,6 @@ class AttendanceBackend:
         try:
             logging.info(f"Starting image capture for {student_name} ({student_id})")
             
-            # Validate inputs
             if not self.is_valid_id(student_id):
                 logging.error(f"Invalid student ID format: {student_id}")
                 return False
@@ -124,40 +116,157 @@ class AttendanceBackend:
                 logging.error(f"Invalid student name format: {student_name}")
                 return False
             
-            # Check if student already exists
-            if self.student_exists(student_id):
-                logging.error(f"Student {student_id} already exists")
+            # Test camera
+            if not self.test_camera():
+                logging.error("Camera test failed")
                 return False
+
+            cam = cv2.VideoCapture(0)
+            cam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
             
-            success, message = self.capture_images_internal(student_id, student_name)
-            logging.info(f"Image capture result: {success}, Message: {message}")
-            return success
+            if not cam.isOpened():
+                logging.error("Camera not accessible")
+                return False
+
+            sample_num = 0
+            
+            while sample_num < 10:  # Capture 10 images
+                ret, img = cam.read()
+                if not ret:
+                    break
+                
+                img = cv2.flip(img, 1)
+                
+                # Show progress
+                cv2.putText(img, f"Capturing: {sample_num + 1}/10", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(img, f"Student: {student_name} ({student_id})", (10, 60), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                cv2.putText(img, "Press SPACE to capture, 'q' to quit", (10, img.shape[0] - 20), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                
+                cv2.imshow('Capturing Face Images', img)
+                
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord(' '):  # Space to capture
+                    # Convert image to base64
+                    _, buffer = cv2.imencode('.jpg', img)
+                    img_base64 = base64.b64encode(buffer).decode('utf-8')
+                    img_data = f"data:image/jpeg;base64,{img_base64}"
+                    
+                    # Send to Flask server
+                    try:
+                        response = requests.post(f"{self.flask_url}/save_image", 
+                                               json={"username": student_name, "image": img_data},
+                                               timeout=10)
+                        if response.status_code == 200:
+                            sample_num += 1
+                            logging.info(f"Image {sample_num} saved successfully")
+                        else:
+                            logging.error(f"Failed to save image: {response.text}")
+                    except requests.exceptions.RequestException as e:
+                        logging.error(f"Request failed: {e}")
+                        
+                elif key == ord('q'):
+                    break
+            
+            cam.release()
+            cv2.destroyAllWindows()
+            
+            if sample_num >= 5:
+                logging.info(f"Successfully captured {sample_num} images for {student_name}")
+                return True
+            else:
+                logging.warning(f"Only {sample_num} images captured")
+                return False
+                
         except Exception as e:
             logging.error(f"Error in capture_images: {e}")
             return False
-    
+
     def train_model(self):
-        """Train the face recognition model - FRONTEND COMPATIBLE"""
+        """Train the FaceNet model via Flask server"""
         try:
             logging.info("Starting model training")
-            success, message = self.train_images()
-            logging.info(f"Training result: {success}, Message: {message}")
-            return success
+            response = requests.post(f"{self.flask_url}/train_model", timeout=60)
+            
+            if response.status_code == 200:
+                result = response.json()
+                logging.info(f"Training successful: {result['message']}")
+                return True
+            else:
+                logging.error(f"Training failed: {response.text}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Training request failed: {e}")
+            return False
         except Exception as e:
             logging.error(f"Error in train_model: {e}")
             return False
-    
+
     def take_attendance(self):
-        """Take attendance using face recognition - FRONTEND COMPATIBLE"""
+        """Take attendance using Flask server"""
         try:
             logging.info("Starting attendance taking")
-            success, message, attendance_data = self.take_attendance_internal()
-            logging.info(f"Attendance result: {success}, Message: {message}")
-            return success
+            
+            if not self.test_camera():
+                return False
+
+            cam = cv2.VideoCapture(0)
+            cam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            
+            attendance_taken = []
+            
+            while True:
+                ret, frame = cam.read()
+                if not ret:
+                    break
+                
+                frame = cv2.flip(frame, 1)
+                
+                cv2.putText(frame, f"Recognized: {len(attendance_taken)} students", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.putText(frame, "Press SPACE to mark attendance, 'q' to quit", (10, 60), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                
+                cv2.imshow('Taking Attendance', frame)
+                
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord(' '):  # Space to mark attendance
+                    # Convert image to base64
+                    _, buffer = cv2.imencode('.jpg', frame)
+                    img_base64 = base64.b64encode(buffer).decode('utf-8')
+                    img_data = f"data:image/jpeg;base64,{img_base64}"
+                    
+                    try:
+                        response = requests.post(f"{self.flask_url}/receive_image", 
+                                               json={"image": img_data},
+                                               timeout=10)
+                        if response.status_code == 200:
+                            result = response.json()
+                            logging.info(f"Attendance result: {result['message']}")
+                            attendance_taken.append(result['message'])
+                        else:
+                            logging.error(f"Attendance failed: {response.text}")
+                    except requests.exceptions.RequestException as e:
+                        logging.error(f"Attendance request failed: {e}")
+                        
+                elif key == ord('q'):
+                    break
+            
+            cam.release()
+            cv2.destroyAllWindows()
+            
+            logging.info(f"Attendance completed. {len(attendance_taken)} records processed")
+            return True
+            
         except Exception as e:
             logging.error(f"Error in take_attendance: {e}")
             return False
-    
+
     def get_attendance_records(self):
         """Get attendance records for display - FRONTEND COMPATIBLE"""
         try:
