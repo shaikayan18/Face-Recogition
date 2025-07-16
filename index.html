@@ -4,25 +4,22 @@
   <title>Face Attendance System</title>
 </head>
 <body>
-  <h2>🧠 Face Attendance System</h2>
-
+  <h2>Face Attendance System</h2>
   <video id="video" width="320" height="240" autoplay></video><br><br>
-
   <button id="markBtn">📝 Mark Attendance</button>
-  <button id="downloadBtn">📥 Download Today’s Attendance</button>
-
   <canvas id="canvas" style="display:none;"></canvas>
 
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
 
-    // Load webcam
+    // Start webcam
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         video.srcObject = stream;
       });
 
+    // Capture image from webcam
     function captureImage() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -30,11 +27,11 @@
       return canvas.toDataURL("image/jpeg");
     }
 
-    // ✅ Mark Attendance
+    // Mark attendance button
     document.getElementById("markBtn").addEventListener("click", () => {
       const image = captureImage();
 
-      fetch("https://face-recogition-1.onrender.com/receive_image", {
+      fetch("https://a7bdc11ad372.ngrok-free.app/receive_image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -44,20 +41,13 @@
       })
       .then(res => res.json())
       .then(data => {
-        alert("✅ Attendance: " + data.message);
-        console.log("✅ Flask responded:", data);
+        alert("✅ " + data.message);
+        console.log("✅ Server response:", data);
       })
       .catch(err => {
         alert("❌ Attendance Error: " + err);
         console.error("❌ Fetch failed:", err);
       });
-    });
-
-    // 📥 Download Attendance CSV
-    document.getElementById("downloadBtn").addEventListener("click", () => {
-      const today = new Date().toISOString().split('T')[0];
-      const fileUrl = `https://face-recogition-1.onrender.com/download_attendance/Attendance_${today}.csv`;
-      window.open(fileUrl, "_blank");
     });
   </script>
 </body>
