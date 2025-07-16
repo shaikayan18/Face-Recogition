@@ -1,4 +1,3 @@
-# flask_server.py
 from flask import Flask, request, jsonify, send_from_directory
 import cv2
 import numpy as np
@@ -163,6 +162,13 @@ def receive_image():
     except Exception as e:
         print("❌ Error in receive_image:", e)
         return jsonify({"message": "Internal server error"}), 500
+
+@app.route('/download_attendance/<filename>', methods=['GET'])
+def download_attendance(filename):
+    try:
+        return send_from_directory(ATTENDANCE_DIR, filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({'message': f'Failed to download: {str(e)}'}), 500
 
 @app.route('/dataset/<path:subpath>')
 def serve_image(subpath):
