@@ -4,14 +4,12 @@
   <title>Face Attendance System</title>
 </head>
 <body>
-  <h2>Face Attendance System</h2>
-  <video id="video" width="320" height="240" autoplay></video><br>
+  <h2>🧠 Face Attendance System</h2>
 
-  <input type="text" id="username" placeholder="Enter your email or name" />
-  <br><br>
-  <button id="captureBtn">📸 Capture & Register</button>
-  <button id="trainBtn">🧠 Train Model</button>
+  <video id="video" width="320" height="240" autoplay></video><br><br>
+
   <button id="markBtn">📝 Mark Attendance</button>
+  <button id="downloadBtn">📥 Download Today’s Attendance</button>
 
   <canvas id="canvas" style="display:none;"></canvas>
 
@@ -19,6 +17,7 @@
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
 
+    // Load webcam
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
         video.srcObject = stream;
@@ -31,54 +30,11 @@
       return canvas.toDataURL("image/jpeg");
     }
 
-    document.getElementById("captureBtn").addEventListener("click", () => {
-      const image = captureImage();
-      let username = document.getElementById("username").value.trim();
-      if (!username) return alert("⚠️ Enter your name or email first!");
-
-      // Sanitize: avoid special characters in folder/filename
-      username = username.replace(/[^a-zA-Z0-9]/g, "_");
-
-      fetch("https://face-recogition.onrender.com/register_image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ image, username })
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert("✅ " + data.message);
-        console.log("✅ Registration success:", data);
-      })
-      .catch(err => {
-        alert("❌ Registration Error: " + err);
-        console.error("❌ Registration Error:", err);
-      });
-    });
-
-    document.getElementById("trainBtn").addEventListener("click", () => {
-      fetch("https://face-recogition.onrender.com/train_model", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert("✅ " + data.message);
-        console.log("✅ Training success:", data);
-      })
-      .catch(err => {
-        alert("❌ Training Error: " + err);
-        console.error("❌ Training Error:", err);
-      });
-    });
-
+    // ✅ Mark Attendance
     document.getElementById("markBtn").addEventListener("click", () => {
       const image = captureImage();
 
-      fetch("https://face-recogition.onrender.com/receive_image", {
+      fetch("https://face-recogition-1.onrender.com/receive_image", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -95,6 +51,13 @@
         alert("❌ Attendance Error: " + err);
         console.error("❌ Fetch failed:", err);
       });
+    });
+
+    // 📥 Download Attendance CSV
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const today = new Date().toISOString().split('T')[0];
+      const fileUrl = `https://face-recogition-1.onrender.com/download_attendance/Attendance_${today}.csv`;
+      window.open(fileUrl, "_blank");
     });
   </script>
 </body>
